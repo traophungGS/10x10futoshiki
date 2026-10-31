@@ -1,0 +1,924 @@
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futoshiki 10x10 Master</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tone.js for web audio sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Grid setup for 10x10 + inequalities */
+        .futoshiki-grid {
+            display: grid;
+            grid-template-columns: repeat(10, minmax(0, 1fr) auto);
+            grid-template-columns: repeat(10, minmax(24px, 1fr) minmax(8px, 16px));
+        }
+        /* Custom subtle scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 9999px;
+        }
+        /* Cell selection animations */
+        .cell-transition {
+            transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-200">
+
+    <!-- Header -->
+    <header class="w-full bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 py-3 px-4 sm:px-8 shadow-sm">
+        <div class="max-w-5xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xl shadow-md">
+                    F
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-xl sm:text-2xl tracking-tight leading-none text-slate-900 dark:text-white">
+                        Futoshiki <span class="text-blue-600 dark:text-blue-400 text-sm font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40">10x10</span>
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block mt-0.5">Hard 10×10 Inequality Logic Puzzle</p>
+                </div>
+            </div>
+
+            <!-- Controls & Stats Header -->
+            <div class="flex items-center gap-4">
+                <div class="hidden sm:flex items-center gap-4 bg-slate-100 dark:bg-slate-700/50 px-3 py-1.5 rounded-lg text-sm font-medium">
+                    <div class="flex items-center gap-1.5">
+                        <i class="fa-regular fa-clock text-blue-500"></i>
+                        <span id="timer-display" class="mono font-semibold">00:00</span>
+                    </div>
+                    <div class="w-px h-4 bg-slate-300 dark:bg-slate-600"></div>
+                    <div class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-shoe-prints text-slate-400"></i>
+                        <span id="move-counter" class="mono font-semibold">0</span>
+                    </div>
+                </div>
+
+                <button id="theme-toggle" class="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors" title="Toggle Light/Dark Theme">
+                    <i class="fa-solid fa-moon text-lg dark:hidden"></i>
+                    <i class="fa-solid fa-sun text-lg hidden dark:block text-amber-400"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-5xl w-full mx-auto p-2 sm:p-4 md:p-6 flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center">
+
+        <!-- Left / Top: Board Container -->
+        <div class="flex flex-col items-center w-full max-w-[560px]">
+
+            <!-- Mobile Info bar -->
+            <div class="flex sm:hidden w-full items-center justify-between bg-white dark:bg-slate-800 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm mb-3 text-xs font-semibold">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-regular fa-clock text-blue-500"></i>
+                    <span id="timer-display-mobile" class="mono">00:00</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                    <span id="error-counter" class="mono text-red-500">0 Errors</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-shoe-prints text-slate-400"></i>
+                    <span id="move-counter-mobile" class="mono">0 Moves</span>
+                </div>
+            </div>
+
+            <!-- Puzzle Grid Card -->
+            <div class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-2.5 sm:p-4 shadow-lg relative">
+                
+                <!-- Loading Overlay -->
+                <div id="loading-overlay" class="absolute inset-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm z-30 rounded-2xl flex flex-col items-center justify-center gap-3 transition-opacity duration-300">
+                    <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p class="text-slate-700 dark:text-slate-200 font-semibold text-sm">Generating 10x10 Hard Puzzle...</p>
+                    <p class="text-xs text-slate-400">Creating Latin square & inequality matrix</p>
+                </div>
+
+                <!-- Complete Overlay -->
+                <div id="win-overlay" class="hidden absolute inset-0 bg-slate-900/80 backdrop-blur-md z-40 rounded-2xl flex flex-col items-center justify-center p-6 text-center text-white animate-fade-in">
+                    <div class="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center text-3xl mb-4 shadow-lg animate-bounce">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold mb-1">Puzzle Solved!</h2>
+                    <p class="text-slate-300 text-sm mb-4">Masterful work solving this 10x10 Futoshiki!</p>
+                    <div class="bg-slate-800/90 rounded-xl p-3 w-full max-w-xs border border-slate-700 flex justify-around mb-6 text-sm">
+                        <div>
+                            <div class="text-xs text-slate-400 uppercase tracking-wider">Time</div>
+                            <div id="win-time" class="font-bold text-base mono">05:20</div>
+                        </div>
+                        <div class="w-px bg-slate-700"></div>
+                        <div>
+                            <div class="text-xs text-slate-400 uppercase tracking-wider">Moves</div>
+                            <div id="win-moves" class="font-bold text-base mono">142</div>
+                        </div>
+                    </div>
+                    <button id="win-new-game" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 font-semibold rounded-xl text-white shadow-md transition-all active:scale-95">
+                        Play Again
+                    </button>
+                </div>
+
+                <!-- Main Grid HTML (Generated dynamically for optimal 10x10 alignment) -->
+                <div id="futoshiki-container" class="w-full aspect-square flex flex-col justify-between">
+                    <!-- Populated by JS -->
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Right / Bottom: Game Controls & Numpad -->
+        <div class="flex flex-col gap-4 w-full max-w-[420px]">
+
+            <!-- Primary Action Bar -->
+            <div class="grid grid-cols-4 gap-2">
+                <button id="btn-undo" class="flex flex-col items-center justify-center gap-1 p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 active:scale-95 transition text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <i class="fa-solid fa-rotate-left text-base text-blue-500"></i>
+                    Undo
+                </button>
+
+                <button id="btn-erase" class="flex flex-col items-center justify-center gap-1 p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 active:scale-95 transition text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <i class="fa-solid fa-eraser text-base text-amber-500"></i>
+                    Erase
+                </button>
+
+                <button id="btn-pencil" class="flex flex-col items-center justify-center gap-1 p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 active:scale-95 transition text-xs font-semibold text-slate-700 dark:text-slate-200 relative">
+                    <i class="fa-solid fa-pencil text-base text-purple-500"></i>
+                    Notes
+                    <span id="pencil-badge" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600"></span>
+                </button>
+
+                <button id="btn-hint" class="flex flex-col items-center justify-center gap-1 p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/50 active:scale-95 transition text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <i class="fa-solid fa-lightbulb text-base text-yellow-500"></i>
+                    Hint
+                </button>
+            </div>
+
+            <!-- Numpad 1 to 10 -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 shadow-md">
+                <div class="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider text-center">Number Pad</div>
+                <div class="grid grid-cols-5 gap-2">
+                    <button class="numpad-btn h-12 rounded-xl bg-slate-100 dark:bg-slate-700/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 font-bold text-lg transition text-slate-800 dark:text-slate-100 active:scale-95" data-val="1">1</button>
+                    <button class="numpad-btn h-12 rounded-xl bg-slate-100 dark:bg-slate-700/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 font-bold text-lg transition text-slate-800 dark:text-slate-100 active:scale-95" data-val="2">2</button>
+                    <button class="numpad-btn h-12 rounded-xl bg-slate-100 dark:bg-slate-700/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 font-bold text-lg transition text-slate-800 dark:text-slate-100 active:scale-95" data-val="3">3</button>
+                    <button class="numpad-btn h-12 rounded-xl bg-slate-100 dark:bg-slate-700/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 font-bold text-lg transition text-slate-800 dark:text-slate-100 active:scale-95" data-val="4">4</button>
+                    <button class="numpad-btn h-12 rounded-xl bg-slate-100 dark:bg-slate-700/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 font-bold text-lg transition text-slate-800 dark:text-slate-100 active:scale-95" data-val="5">5</button>
+                    <button class="numpad-btn h-12 rounded-xl bg-slate-100 dark:bg-slate-700/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 font-bold text-lg transition text-slate-800 dark:text-slate-100 active:scale-95" data-val="6">6</button>
+                    <button class="numpad-btn h-12 rounded-xl bg-slate-100 dark:bg-slate-700/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 font-bold text-lg transition text-slate-800 dark:text-slate-100 active:scale-95" data-val="7">7</button>
+                    <button class="numpad-btn h-12 rounded-xl bg-slate-100 dark:bg-slate-700/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 font-bold text-lg transition text-slate-800 dark:text-slate-100 active:scale-95" data-val="8">8</button>
+                    <button class="numpad-btn h-12 rounded-xl bg-slate-100 dark:bg-slate-700/70 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 font-bold text-lg transition text-slate-800 dark:text-slate-100 active:scale-95" data-val="9">9</button>
+                    <button class="numpad-btn h-12 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-700/50 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 font-bold text-lg transition active:scale-95" data-val="10">10</button>
+                </div>
+            </div>
+
+            <!-- Game Management & Tools -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-md flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2.5">
+                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Real-time Error Check</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggle-error-check" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:after:border-slate-600 peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button id="btn-new-game" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm transition shadow-sm active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus"></i> New Game
+                    </button>
+                    <button id="btn-restart" class="px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-sm transition active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate"></i> Restart
+                    </button>
+                </div>
+
+                <button id="btn-solve" class="px-4 py-2 bg-slate-100 dark:bg-slate-700/50 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 text-slate-500 dark:text-slate-400 font-medium rounded-xl text-xs transition flex items-center justify-center gap-1.5 mt-1">
+                    <i class="fa-solid fa-flag"></i> Give Up & Solve
+                </button>
+            </div>
+
+            <!-- Rules / Shortcuts Guide -->
+            <div class="bg-slate-100 dark:bg-slate-800/50 rounded-2xl p-3 text-xs text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/40">
+                <div class="font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+                    <i class="fa-solid fa-circle-info text-blue-500"></i> Rules & Keyboard Shortcuts
+                </div>
+                <p class="mb-1">Fill digits 1-10 into each row and column without repeating. Respect all inequality signs (&lt;, &gt;, ^, v).</p>
+                <div class="grid grid-cols-2 gap-1 text-[11px] mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <div><span class="font-mono bg-white dark:bg-slate-700 px-1 rounded border">1-9</span> : Fill 1-9</div>
+                    <div><span class="font-mono bg-white dark:bg-slate-700 px-1 rounded border">0</span> : Fill 10</div>
+                    <div><span class="font-mono bg-white dark:bg-slate-700 px-1 rounded border">N</span> : Toggle Notes</div>
+                    <div><span class="font-mono bg-white dark:bg-slate-700 px-1 rounded border">Del</span> : Erase Cell</div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- App Logic -->
+    <script>
+        /**
+         * Futoshiki 10x10 Game Engine
+         */
+        const SIZE = 10;
+        
+        // Game State Variables
+        let solutionGrid = [];      // 10x10 array of completed target numbers
+        let initialClues = [];      // 10x10 array of given fixed numbers (0 if blank)
+        let userGrid = [];          // 10x10 array of current player values
+        let notesGrid = [];         // 10x10 array of sets/arrays of candidate numbers
+        let horizInequalities = []; // 10x9 array: '>' or '<' or null
+        let vertInequalities = [];  // 9x10 array: 'v' or '^' or null
+
+        let selectedCell = null;    // {r, c}
+        let isNoteMode = false;
+        let isErrorCheckEnabled = true;
+        let moveHistory = [];
+        let timerInterval = null;
+        let timerSeconds = 0;
+        let moveCount = 0;
+        let isGameFinished = false;
+
+        // Sound Audio Effects via Tone.js
+        const synth = new Tone.Synth({
+            oscillator: { type: "triangle" },
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0.0, release: 0.1 }
+        }).toDestination();
+        synth.volume.value = -12;
+
+        function playSound(type) {
+            try {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                if (type === 'click') synth.triggerAttackRelease("C5", "8n");
+                else if (type === 'fill') synth.triggerAttackRelease("E5", "8n");
+                else if (type === 'erase') synth.triggerAttackRelease("G4", "8n");
+                else if (type === 'error') synth.triggerAttackRelease("C3", "8n");
+                else if (type === 'win') {
+                    const now = Tone.now();
+                    synth.triggerAttackRelease("C5", "8n", now);
+                    synth.triggerAttackRelease("E5", "8n", now + 0.1);
+                    synth.triggerAttackRelease("G5", "8n", now + 0.2);
+                    synth.triggerAttackRelease("C6", "4n", now + 0.3);
+                }
+            } catch (e) {
+                // Audio fallback if muted/restricted
+            }
+        }
+
+        // --- PUZZLE GENERATOR (10x10 Hard) ---
+
+        // Generate valid 10x10 Latin Square using randomized shifted rows + cell swapping
+        function generateLatinSquare() {
+            let grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+            // Base cyclic Latin Square
+            let base = Array.from({ length: SIZE }, (_, i) => i + 1);
+            // Shuffle base numbers mapping
+            shuffleArray(base);
+
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    grid[r][c] = base[(r + c) % SIZE];
+                }
+            }
+
+            // Shuffle rows within randomized permutations
+            for (let i = 0; i < 30; i++) {
+                let r1 = Math.floor(Math.random() * SIZE);
+                let r2 = Math.floor(Math.random() * SIZE);
+                let temp = grid[r1];
+                grid[r1] = grid[r2];
+                grid[r2] = temp;
+            }
+
+            // Shuffle columns
+            for (let i = 0; i < 30; i++) {
+                let c1 = Math.floor(Math.random() * SIZE);
+                let c2 = Math.floor(Math.random() * SIZE);
+                for (let r = 0; r < SIZE; r++) {
+                    let temp = grid[r][c1];
+                    grid[r][c1] = grid[r][c2];
+                    grid[r][c2] = temp;
+                }
+            }
+
+            return grid;
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+
+        // Asynchronous generator to prevent UI lockup during puzzle creation
+        async function createPuzzleAsync() {
+            showLoading(true);
+            await new Promise(resolve => setTimeout(resolve, 50)); // let UI render loading spinner
+
+            // 1. Generate full solved Latin square
+            solutionGrid = generateLatinSquare();
+
+            // 2. Generate Inequalities
+            horizInequalities = Array.from({ length: SIZE }, () => Array(SIZE - 1).fill(null));
+            vertInequalities = Array.from({ length: SIZE - 1 }, () => Array(SIZE).fill(null));
+
+            // Populate random horizontal constraints (~35% density)
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE - 1; c++) {
+                    if (Math.random() < 0.38) {
+                        horizInequalities[r][c] = solutionGrid[r][c] < solutionGrid[r][c + 1] ? '<' : '>';
+                    }
+                }
+            }
+
+            // Populate random vertical constraints (~35% density)
+            for (let r = 0; r < SIZE - 1; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if (Math.random() < 0.38) {
+                        vertInequalities[r][c] = solutionGrid[r][c] < solutionGrid[r + 1][c] ? '^' : 'v';
+                    }
+                }
+            }
+
+            // 3. Select Initial Clues for "Hard" Difficulty
+            // 10x10 has 100 cells. Hard difficulty gives roughly 15-22 initial clues alongside constraints.
+            initialClues = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+            userGrid = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+            notesGrid = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => new Set()));
+
+            let totalCluesToKeep = 18 + Math.floor(Math.random() * 5); // ~18-22 clues
+            let positions = [];
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) positions.push({ r, c });
+            }
+            shuffleArray(positions);
+
+            for (let i = 0; i < totalCluesToKeep; i++) {
+                let { r, c } = positions[i];
+                initialClues[r][c] = solutionGrid[r][c];
+                userGrid[r][c] = solutionGrid[r][c];
+            }
+
+            moveHistory = [];
+            moveCount = 0;
+            isGameFinished = false;
+            selectedCell = null;
+            
+            renderBoard();
+            updateStatsUI();
+            startTimer();
+            showLoading(false);
+        }
+
+        // --- UI RENDERING ---
+
+        function renderBoard() {
+            const container = document.getElementById('futoshiki-container');
+            container.innerHTML = '';
+
+            // We construct a flex column layout of rows
+            // Each cell row has number cells & horizontal inequalities
+            // Between cell rows are vertical inequality rows
+            for (let r = 0; r < SIZE; r++) {
+                // Cell Row
+                const cellRow = document.createElement('div');
+                cellRow.className = 'flex items-center justify-between w-full h-[8.5%]';
+
+                for (let c = 0; c < SIZE; c++) {
+                    // Digit Cell
+                    const cell = document.createElement('div');
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    cell.id = `cell-${r}-${c}`;
+                    
+                    const isGiven = initialClues[r][c] !== 0;
+                    const val = userGrid[r][c];
+                    
+                    cell.className = `cell-transition aspect-square h-full rounded-lg sm:rounded-xl border flex items-center justify-center font-bold text-sm sm:text-base md:text-lg cursor-pointer relative ${
+                        isGiven 
+                            ? 'bg-slate-200/80 dark:bg-slate-700/80 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 font-extrabold' 
+                            : 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                    }`;
+
+                    if (val !== 0) {
+                        cell.innerText = val;
+                    } else if (notesGrid[r][c].size > 0) {
+                        // Render mini candidates grid (1 to 10)
+                        const notesDiv = document.createElement('div');
+                        notesDiv.className = 'grid grid-cols-5 gap-0.5 w-full h-full p-0.5 text-[7px] sm:text-[9px] leading-none text-slate-400 dark:text-slate-500 font-normal';
+                        for (let n = 1; n <= 10; n++) {
+                            const noteSpan = document.createElement('div');
+                            noteSpan.className = 'flex items-center justify-center';
+                            noteSpan.innerText = notesGrid[r][c].has(n) ? (n === 10 ? '0' : n) : '';
+                            notesDiv.appendChild(noteSpan);
+                        }
+                        cell.appendChild(notesDiv);
+                    }
+
+                    cell.addEventListener('click', () => selectCell(r, c));
+                    cellRow.appendChild(cell);
+
+                    // Horizontal inequality spacer/symbol (between c and c+1)
+                    if (c < SIZE - 1) {
+                        const hSymbol = horizInequalities[r][c];
+                        const hDiv = document.createElement('div');
+                        hDiv.className = 'flex-1 flex items-center justify-center font-black text-xs sm:text-sm md:text-base text-slate-400 dark:text-slate-500 select-none px-0.5';
+                        hDiv.innerText = hSymbol ? hSymbol : '';
+                        cellRow.appendChild(hDiv);
+                    }
+                }
+                container.appendChild(cellRow);
+
+                // Vertical Inequality Row (between r and r+1)
+                if (r < SIZE - 1) {
+                    const vRow = document.createElement('div');
+                    vRow.className = 'flex items-center justify-between w-full h-[1.8%] my-0.5';
+
+                    for (let c = 0; c < SIZE; c++) {
+                        const vSymbol = vertInequalities[r][c];
+                        const vDiv = document.createElement('div');
+                        vDiv.className = 'aspect-square h-full flex items-center justify-center font-black text-xs sm:text-sm text-slate-400 dark:text-slate-500 select-none';
+                        
+                        // Convert v / ^ for display if needed
+                        if (vSymbol === '^') vDiv.innerText = '∧';
+                        else if (vSymbol === 'v') vDiv.innerText = '∨';
+                        else vDiv.innerText = '';
+
+                        vRow.appendChild(vDiv);
+
+                        // Spacer matching horizontal space
+                        if (c < SIZE - 1) {
+                            const spacer = document.createElement('div');
+                            spacer.className = 'flex-1';
+                            vRow.appendChild(spacer);
+                        }
+                    }
+                    container.appendChild(vRow);
+                }
+            }
+
+            highlightSelectedCell();
+            if (isErrorCheckEnabled) validateErrorsUI();
+        }
+
+        // Highlight selected cell, row, column, and matching values
+        function highlightSelectedCell() {
+            // Reset all cell highlights
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const cell = document.getElementById(`cell-${r}-${c}`);
+                    if (!cell) continue;
+
+                    const isGiven = initialClues[r][c] !== 0;
+                    cell.classList.remove(
+                        'ring-2', 'ring-blue-500', 'bg-blue-100', 'dark:bg-blue-900/50', 
+                        'bg-blue-50', 'dark:bg-slate-700/40', 'bg-emerald-100', 'dark:bg-emerald-900/40'
+                    );
+
+                    if (!isGiven) {
+                        cell.classList.add('bg-white', 'dark:bg-slate-800');
+                    }
+                }
+            }
+
+            if (!selectedCell) return;
+            const { r, c } = selectedCell;
+            const selectedVal = userGrid[r][c];
+
+            // Highlight Row and Column
+            for (let i = 0; i < SIZE; i++) {
+                const rCell = document.getElementById(`cell-${r}-${i}`);
+                const cCell = document.getElementById(`cell-${i}-${c}`);
+                
+                if (rCell && (r !== r || i !== c)) rCell.classList.add('bg-blue-50/70', 'dark:bg-slate-700/40');
+                if (cCell && (i !== r || c !== c)) cCell.classList.add('bg-blue-50/70', 'dark:bg-slate-700/40');
+            }
+
+            // Highlight matching numbers
+            if (selectedVal !== 0) {
+                for (let i = 0; i < SIZE; i++) {
+                    for (let j = 0; j < SIZE; j++) {
+                        if (userGrid[i][j] === selectedVal) {
+                            const matchCell = document.getElementById(`cell-${i}-${j}`);
+                            if (matchCell) matchCell.classList.add('bg-blue-200/60', 'dark:bg-blue-800/50');
+                        }
+                    }
+                }
+            }
+
+            // Active Cell Highlight
+            const activeCell = document.getElementById(`cell-${r}-${c}`);
+            if (activeCell) {
+                activeCell.classList.add('ring-2', 'ring-blue-500', 'z-10');
+            }
+        }
+
+        function selectCell(r, c) {
+            if (isGameFinished) return;
+            selectedCell = { r, c };
+            playSound('click');
+            highlightSelectedCell();
+        }
+
+        // --- REAL-TIME VALIDATION & CONFLICTS ---
+
+        function validateErrorsUI() {
+            let errorCount = 0;
+            // Clear existing error highlights
+            document.querySelectorAll('.cell-error').forEach(el => {
+                el.classList.remove('cell-error', 'text-red-500', 'bg-red-50', 'dark:bg-red-950/40', 'border-red-400');
+            });
+
+            if (!isErrorCheckEnabled) {
+                document.getElementById('error-counter').innerText = '0 Errors';
+                return;
+            }
+
+            const errorCells = new Set();
+
+            // 1. Row duplicates
+            for (let r = 0; r < SIZE; r++) {
+                let seen = {};
+                for (let c = 0; c < SIZE; c++) {
+                    let val = userGrid[r][c];
+                    if (val !== 0) {
+                        if (seen[val] !== undefined) {
+                            errorCells.add(`${r},${c}`);
+                            errorCells.add(`${r},${seen[val]}`);
+                        } else {
+                            seen[val] = c;
+                        }
+                    }
+                }
+            }
+
+            // 2. Column duplicates
+            for (let c = 0; c < SIZE; c++) {
+                let seen = {};
+                for (let r = 0; r < SIZE; r++) {
+                    let val = userGrid[r][c];
+                    if (val !== 0) {
+                        if (seen[val] !== undefined) {
+                            errorCells.add(`${r},${c}`);
+                            errorCells.add(`${seen[val]},${c}`);
+                        } else {
+                            seen[val] = r;
+                        }
+                    }
+                }
+            }
+
+            // 3. Horizontal Inequalities
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE - 1; c++) {
+                    const symbol = horizInequalities[r][c];
+                    const left = userGrid[r][c];
+                    const right = userGrid[r][c + 1];
+
+                    if (symbol && left !== 0 && right !== 0) {
+                        if ((symbol === '<' && left >= right) || (symbol === '>' && left <= right)) {
+                            errorCells.add(`${r},${c}`);
+                            errorCells.add(`${r},${c + 1}`);
+                        }
+                    }
+                }
+            }
+
+            // 4. Vertical Inequalities
+            for (let r = 0; r < SIZE - 1; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const symbol = vertInequalities[r][c];
+                    const top = userGrid[r][c];
+                    const bottom = userGrid[r + 1][c];
+
+                    if (symbol && top !== 0 && bottom !== 0) {
+                        if ((symbol === '^' && top >= bottom) || (symbol === 'v' && top <= bottom)) {
+                            errorCells.add(`${r},${c}`);
+                            errorCells.add(`${r + 1},${c}`);
+                        }
+                    }
+                }
+            }
+
+            // Apply error styles
+            errorCells.forEach(key => {
+                const [r, c] = key.split(',').map(Number);
+                const cell = document.getElementById(`cell-${r}-${c}`);
+                if (cell) {
+                    cell.classList.add('cell-error', 'text-red-500', 'bg-red-50', 'dark:bg-red-950/40', 'border-red-400');
+                }
+            });
+
+            errorCount = errorCells.size;
+            document.getElementById('error-counter').innerText = `${errorCount} Error${errorCount === 1 ? '' : 's'}`;
+        }
+
+        // --- GAME ACTIONS & INPUTS ---
+
+        function handleInputNumber(num) {
+            if (!selectedCell || isGameFinished) return;
+            const { r, c } = selectedCell;
+
+            // Cannot edit given clue cells
+            if (initialClues[r][c] !== 0) return;
+
+            // Save state for Undo
+            saveHistory();
+
+            if (isNoteMode) {
+                // Pencil mode toggling
+                if (userGrid[r][c] !== 0) userGrid[r][c] = 0; // Clear cell digit if setting note
+                if (notesGrid[r][c].has(num)) {
+                    notesGrid[r][c].delete(num);
+                } else {
+                    notesGrid[r][c].add(num);
+                }
+                playSound('click');
+            } else {
+                // Direct digit placement
+                if (userGrid[r][c] === num) {
+                    userGrid[r][c] = 0; // Toggle off if pressing same number
+                    playSound('erase');
+                } else {
+                    userGrid[r][c] = num;
+                    notesGrid[r][c].clear();
+                    playSound('fill');
+                }
+                moveCount++;
+            }
+
+            renderBoard();
+            checkWinCondition();
+        }
+
+        function handleErase() {
+            if (!selectedCell || isGameFinished) return;
+            const { r, c } = selectedCell;
+
+            if (initialClues[r][c] !== 0) return;
+
+            if (userGrid[r][c] !== 0 || notesGrid[r][c].size > 0) {
+                saveHistory();
+                userGrid[r][c] = 0;
+                notesGrid[r][c].clear();
+                playSound('erase');
+                moveCount++;
+                renderBoard();
+            }
+        }
+
+        function handleHint() {
+            if (!selectedCell || isGameFinished) return;
+            const { r, c } = selectedCell;
+
+            if (initialClues[r][c] !== 0) return;
+
+            saveHistory();
+            userGrid[r][c] = solutionGrid[r][c];
+            notesGrid[r][c].clear();
+            playSound('fill');
+            moveCount += 2; // Hint penalty
+            renderBoard();
+            checkWinCondition();
+        }
+
+        function handleUndo() {
+            if (moveHistory.length === 0 || isGameFinished) return;
+            const prevState = moveHistory.pop();
+            
+            // Deep copy state back
+            userGrid = prevState.userGrid.map(row => [...row]);
+            notesGrid = prevState.notesGrid.map(row => row.map(s => new Set(s)));
+            
+            playSound('click');
+            renderBoard();
+        }
+
+        function saveHistory() {
+            // Keep up to 30 undo states
+            if (moveHistory.length >= 30) moveHistory.shift();
+            moveHistory.push({
+                userGrid: userGrid.map(row => [...row]),
+                notesGrid: notesGrid.map(row => row.map(s => new Set(s)))
+            });
+        }
+
+        function checkWinCondition() {
+            // Check if grid is filled completely and matches solution (or satisfies all Latin + inequality rules)
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if (userGrid[r][c] !== solutionGrid[r][c]) {
+                        return false;
+                    }
+                }
+            }
+
+            // Puzzle solved!
+            isGameFinished = true;
+            stopTimer();
+            playSound('win');
+            
+            document.getElementById('win-time').innerText = formatTime(timerSeconds);
+            document.getElementById('win-moves').innerText = moveCount;
+            document.getElementById('win-overlay').classList.remove('hidden');
+            return true;
+        }
+
+        function solvePuzzle() {
+            if (isGameFinished) return;
+            if (confirm("Are you sure you want to reveal the solution?")) {
+                userGrid = solutionGrid.map(row => [...row]);
+                isGameFinished = true;
+                stopTimer();
+                renderBoard();
+            }
+        }
+
+        function restartCurrentPuzzle() {
+            if (confirm("Reset current puzzle to starting state?")) {
+                userGrid = initialClues.map(row => [...row]);
+                notesGrid = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => new Set()));
+                moveHistory = [];
+                moveCount = 0;
+                isGameFinished = false;
+                renderBoard();
+                startTimer(true);
+            }
+        }
+
+        // --- TIMER & STATS ---
+
+        function startTimer(reset = true) {
+            clearInterval(timerInterval);
+            if (reset) timerSeconds = 0;
+            updateStatsUI();
+            
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                updateStatsUI();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function formatTime(totalSecs) {
+            const m = Math.floor(totalSecs / 60).toString().padStart(2, '0');
+            const s = (totalSecs % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function updateStatsUI() {
+            const formatted = formatTime(timerSeconds);
+            document.getElementById('timer-display').innerText = formatted;
+            document.getElementById('timer-display-mobile').innerText = formatted;
+
+            document.getElementById('move-counter').innerText = moveCount;
+            document.getElementById('move-counter-mobile').innerText = `${moveCount} Moves`;
+        }
+
+        function showLoading(show) {
+            const loader = document.getElementById('loading-overlay');
+            if (show) {
+                loader.classList.remove('opacity-0', 'pointer-events-none');
+            } else {
+                loader.classList.add('opacity-0', 'pointer-events-none');
+            }
+        }
+
+        // --- KEYBOARD & EVENT LISTENERS ---
+
+        function initEventListeners() {
+            // Numpad button click listeners
+            document.querySelectorAll('.numpad-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const val = parseInt(e.currentTarget.dataset.val, 10);
+                    handleInputNumber(val);
+                });
+            });
+
+            // Action Buttons
+            document.getElementById('btn-undo').addEventListener('click', handleUndo);
+            document.getElementById('btn-erase').addEventListener('click', handleErase);
+            document.getElementById('btn-hint').addEventListener('click', handleHint);
+            document.getElementById('btn-solve').addEventListener('click', solvePuzzle);
+            document.getElementById('btn-restart').addEventListener('click', restartCurrentPuzzle);
+            document.getElementById('btn-new-game').addEventListener('click', () => {
+                document.getElementById('win-overlay').classList.add('hidden');
+                createPuzzleAsync();
+            });
+            document.getElementById('win-new-game').addEventListener('click', () => {
+                document.getElementById('win-overlay').classList.add('hidden');
+                createPuzzleAsync();
+            });
+
+            // Notes / Pencil Mode Toggle
+            const pencilBtn = document.getElementById('btn-pencil');
+            const pencilBadge = document.getElementById('pencil-badge');
+            pencilBtn.addEventListener('click', () => {
+                isNoteMode = !isNoteMode;
+                if (isNoteMode) {
+                    pencilBtn.classList.add('bg-purple-50', 'dark:bg-purple-900/30', 'border-purple-300');
+                    pencilBadge.classList.replace('bg-slate-300', 'bg-purple-500');
+                    pencilBadge.classList.replace('dark:bg-slate-600', 'bg-purple-500');
+                } else {
+                    pencilBtn.classList.remove('bg-purple-50', 'dark:bg-purple-900/30', 'border-purple-300');
+                    pencilBadge.classList.replace('bg-purple-500', 'bg-slate-300');
+                    pencilBadge.classList.replace('bg-purple-500', 'dark:bg-slate-600');
+                }
+            });
+
+            // Real-time Error Toggle
+            document.getElementById('toggle-error-check').addEventListener('change', (e) => {
+                isErrorCheckEnabled = e.target.checked;
+                validateErrorsUI();
+            });
+
+            // Theme Toggle
+            document.getElementById('theme-toggle').addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+            });
+
+            // Keyboard Navigation & Input
+            window.addEventListener('keydown', (e) => {
+                if (isGameFinished) return;
+
+                // Number Inputs: 1-9 directly, 0 translates to 10
+                if (e.key >= '1' && e.key <= '9') {
+                    handleInputNumber(parseInt(e.key, 10));
+                } else if (e.key === '0') {
+                    handleInputNumber(10);
+                } else if (e.key === 'Backspace' || e.key === 'Delete') {
+                    handleErase();
+                } else if (e.key.toLowerCase() === 'n') {
+                    pencilBtn.click();
+                } else if (e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey)) {
+                    handleUndo();
+                } 
+                // Arrow keys for grid navigation
+                else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    e.preventDefault();
+                    if (!selectedCell) {
+                        selectCell(0, 0);
+                        return;
+                    }
+                    let { r, c } = selectedCell;
+                    if (e.key === 'ArrowUp') r = Math.max(0, r - 1);
+                    if (e.key === 'ArrowDown') r = Math.min(SIZE - 1, r + 1);
+                    if (e.key === 'ArrowLeft') c = Math.max(0, c - 1);
+                    if (e.key === 'ArrowRight') c = Math.min(SIZE - 1, c + 1);
+                    selectCell(r, c);
+                }
+            });
+        }
+
+        // --- INIT APP ---
+        window.onload = function() {
+            initEventListeners();
+            createPuzzleAsync();
+        };
+    </script>
+</body>
+</html>
